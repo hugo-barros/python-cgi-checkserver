@@ -29,7 +29,7 @@ def conv(d): # Trabalha em cima de um binario, jogando para uma string
 
             for x in range(len(dados)):
                     dados[x] = dados[x] [2:].rjust(8, '0')
-    
+
             dados = ''.join(dados)
 
             return dados
@@ -84,6 +84,16 @@ def montaPacote(cmd, t): # Montar o pacote juntando cada parte
 
     return p
 
+def func(connection):
+    data = connection.recv(BUFFER_SIZE)
+    if data:
+        comando, aux_t = lerPacote(data)
+        pacote = montaPacote(comando, aux_t)
+        print "OK"
+        connection.send(pacote)
+
+    connection.close()
+
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 c.bind((IP, PORT))
 c.listen(300)
@@ -91,5 +101,4 @@ c.listen(300)
 while True:
         connect, addr = c.accept()
         print 'Addres = ', addr
-
-        thread.start_new_thread(Thread_funcao, (connect,))
+        thread.start_new_thread(func, (connect,))
