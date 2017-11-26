@@ -29,6 +29,9 @@ def lerPacote(p):
     return Protocol, TTL
 
 def montaPacote(cmd, t):
+
+    t = TCP_IP.split(".")
+
     Version =  '0010'
     IHL = '0101'
     TOS = '00000000'
@@ -36,12 +39,14 @@ def montaPacote(cmd, t):
     FragID = '0000000000000000'
     Flags = '111'
     FragOffset = '0000000000000'
-    TTL = p[64:72]
+    TTL =
     Protocol = '00000000'
     HeaderChecksum = '0000000000000000'
-    SourceAddr = p[96:128]
-    DestinationAddr = p[128:160]
-    Options = p[160:]
+    SourceAddr =
+    DestinationAddr =
+    Options =
+
+    return pacote
 
 
 def execute(cmd):
