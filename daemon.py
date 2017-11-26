@@ -73,7 +73,7 @@ def montaPacote(cmd, t): # Montar o pacote juntando cada parte
 
     Dat = conv(execute(int(cmd, 2)))
 
-    tamPacote = (Version + IHL + TOS + Length + FragID + Flags + FragOffset + TTL + Protocol + HeaderChecksum \
+    tamPacote = len(Version + IHL + TOS + Length + FragID + Flags + FragOffset + TTL + Protocol + HeaderChecksum \
     + SourceAddr + DestinationAddr + Dat)
 
     word32 = int(math.ceil(float(tamPacote) / 32.0))
