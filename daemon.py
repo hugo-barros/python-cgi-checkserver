@@ -3,102 +3,168 @@ import sys
 import thread
 import math
 import subprocess
+from struct import *
 
 BUFFER_SIZE = 4096
-IP = 127.0.0.1
+IP = '127.0.0.1'
+PORT = 9001
 if len(sys.argv) < 2:
-  print "Porta não encontrada"
+  print "Porta nao encontrada"
 else:
     PORT = int(sys.argv[1])
 
-def execute(cmd): # Execucao dos comandos
-        if(cmd == 1):
-            return subprocess.check_output(['ps'])
-        elif(cmd == 2):
-            return subprocess.check_output(['df'])
-        elif(cmd == 3):
-            return subprocess.check_output(['finger'])
-        elif(cmd == 4):
-            return subprocess.check_output(['uptime'])
-        else:
-            return 'Erro'
+def execute(cmd, op): # Execucao dos comandos
+    #op eh int
+    cmd_list = []
 
+    if(cmd == 1):
+        cmd_list.append('ps')
+        
+    elif(cmd == 2):
+        cmd_list.append('df')
+        
+    elif(cmd == 3):
+        cmd_list.append('finger')
+        
+    elif(cmd == 4):
+        cmd_list.append('uptime')
+    else:
+        return 'Erro'
 
-def conv(d): # Trabalha em cima de um binario, jogando para uma string
-            dados = (map(bin, bytearray(d)))
+    if op == 1:
+        cmd_list.append('-ef')
+    elif op == 2:
+        cmd_list.append('ax')
+    elif op == 3:
+        cmd_list.append('-s')
+    elif op == 4:
+        cmd_list.append('-l')
+    elif op == 5:
+        cmd_list.append('-a')
+    elif op == 6:
+        cmd_list.append('-h')
+    elif op == 7:
+        cmd_list.append('-p')
+    elif op == 8:
+        cmd_list.append('-V')
+    
 
-            for x in range(len(dados)):
-                    dados[x] = dados[x] [2:].rjust(8, '0')
-
-            dados = ''.join(dados)
-
-            return dados
-
+    return subprocess.check_output(cmd_list)
 
 def lerPacote(p): #Fazer a leitura de cada parte do pacote
-    Version =  p[0:4]
-    IHL = p[4:8]
-    TOS = p[8:16]
-    Lenght = p[16:32]
-    FragID = p[32:48]
-    Flags = p[48:51]
-    FragOffset = p[51:64]
-    TTL = p[64:72]
-    Protocol = p[72:80]
-    HeaderChecksum = p[80:96]
-    SourceAddr = p[96:128]
-    DestinationAddr = p[128:160]
-    Options = p[160:]
+    print("Lendo pacote data")
+    cabecalho = unpack('!BBHHHBBHIII', p)
+    soma_checksum = 0
+    bytes_pack = unpack('!BBBBBBBBBBBBBBBBBBBBBBBB', p)
+    for i in range(len(bytes_pack)):
+        if i not in (10,11):
+            print(str(i))
+            print (bytes_pack[i])
+            print ("soma_checksum anterior: " + str(soma_checksum))
+            soma_checksum = soma_checksum ^ bytes_pack[i]
+            print ("novo soma_checksum : " + str(soma_checksum))
+        
+    checksum = cabecalho[7]
+    print(cabecalho)
+    print("SomaChecksum = " + str(soma_checksum))
+    print("Checksum = " + str(checksum))
+    Protocol = cabecalho[6]
+    TTL = cabecalho[5]
+    opt = cabecalho[-1]
 
-    return Protocol, TTL
+    if soma_checksum == checksum:
+        return Protocol, TTL, opt
+    else:
+        return "Erro", TTL, opt
 
-def montaPacote(cmd, t): # Montar o pacote juntando cada parte
+def montaPacote(cmd, t, opt): # Montar o pacote juntando cada parte
+    if t > 1:
+        soma_checksum = 0
+        # 1st byte:
+        Version =  '0010'
+        IHL = '0101'
+        soma_checksum = soma_checksum ^ int(Version+IHL,2)
 
-    Version =  '0010'
-    IHL = '0101'
-    TOS = '00000000'
-    FragID = '0000000000000000'
-    Flags = '111'
-    FragOffset = '0000000000000'
-    TTL = bin(int(t, 2)-1) [2:].rjust(8, '0')
-    Protocol = '00000000'
-    HeaderChecksum = '0000000000000000'
+        TOS = '00000000'
+        soma_checksum = soma_checksum ^ int(TOS, 2)
 
-    t = TCP_IP.split(".")
-    for i in range(len(t)):
-        t[i] = (bin(int(t[i]))) [2:].rjust(8, '0')
+        Dat = execute(cmd, opt) # devolve string de resultado do comando
+        print("dat == " + Dat)
 
-    SourceAddr = ''.join(t)
-    DestinationAddr = ''.join(t)
+        tamPacote = 20 + len(Dat) # tamanho contado em bytes
+        bytes_tam = unpack('!BB', pack('H', tamPacote))
+        soma_checksum = soma_checksum ^ bytes_tam[0]
+        soma_checksum = soma_checksum ^ bytes_tam[1]
 
-    Dat = conv(execute(int(cmd, 2)))
 
-    tamPacote = len(Version + IHL + TOS + Length + FragID + Flags + FragOffset + TTL + Protocol + HeaderChecksum \
-    + SourceAddr + DestinationAddr + Dat)
+        FragID = '0000000000000000'
+        soma_checksum = soma_checksum ^ int(FragID[0:8], 2)
+        soma_checksum = soma_checksum ^ int(FragID[8:16], 2)
 
-    word32 = int(math.ceil(float(tamPacote) / 32.0))
-    Length = ''.join(bin(word32 * 32)) [2:].rjust(16, '0')
+        Flags = '111'
+        FragOffset = '0000000000000'
+        soma_checksum = soma_checksum ^ int((Flags+FragOffset)[0:8],2)
+        soma_checksum = soma_checksum ^ int((Flags+FragOffset)[8:16],2)
 
-    p = (Version + IHL + TOS + Length + FragID  + Flags + FragOffset + TTL + Protocol + HeaderChecksum \
-    + SourceAddr + DestinationAddr + Dat)
+        TTL = t-1 #parametro t eh um int 
+        soma_checksum = soma_checksum ^ TTL
 
-    return p
+        Protocol = '00000000'
+
+
+        t = IP.split(".")
+        for i in range(len(t)):
+            t[i] = (bin(int(t[i]))) [2:].rjust(8, '0')
+
+        SourceAddr = ''.join(t)
+        soma_checksum = soma_checksum ^ int(SourceAddr[0:8],2)
+        soma_checksum = soma_checksum ^ int(SourceAddr[8:16],2)
+        soma_checksum = soma_checksum ^ int(SourceAddr[16:24],2)
+        soma_checksum = soma_checksum ^ int(SourceAddr[24:32],2)
+
+        DestinationAddr = ''.join(t)
+
+        soma_checksum = soma_checksum ^ int(DestinationAddr[0:8],2)
+        soma_checksum = soma_checksum ^ int(DestinationAddr[8:16],2)
+        soma_checksum = soma_checksum ^ int(DestinationAddr[16:24],2)
+        soma_checksum = soma_checksum ^ int(DestinationAddr[24:32],2)
+
+
+        
+        print ("checksum: " + str(soma_checksum))
+        cabecalho = pack('!BBHHHBBHII', int(Version+IHL, 2) \
+                                     , int(TOS, 2) \
+                                     , tamPacote
+                                     , int(FragID, 2) \
+                                     , int((Flags+FragOffset),2) \
+                                     , TTL \
+                                     , int(Protocol, 2) \
+                                     , soma_checksum \
+                                     , int(SourceAddr, 2) \
+                                     , int(DestinationAddr, 2)
+                                     )
+        return cabecalho + "|||" + Dat
+
 
 def func(connection):
     data = connection.recv(BUFFER_SIZE)
+    print("data: " + str(data))
     if data:
-        comando, aux_t = lerPacote(data)
-        pacote = montaPacote(comando, aux_t)
-        print "OK"
-        connection.send(pacote)
+        comando, aux_t, opt = lerPacote(data)
+        if comando != 'Erro':
+            pacote = montaPacote(comando, aux_t, opt)
+            print "OK"
+            connection.send(pacote)
+        else:
+            print "ERROR"
 
     connection.close()
 
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 c.bind((IP, PORT))
-c.listen(300)
+c.listen(50)
 
 while True:
         connect, addr = c.accept()
-        print 'Addres = ', addr
+        print 'Address = ', addr
         thread.start_new_thread(func, (connect,))
