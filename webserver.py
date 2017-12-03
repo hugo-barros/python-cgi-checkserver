@@ -5,6 +5,19 @@ import math
 import socket
 from struct import *
 
+
+'''
+sem options = 0
+-ef = 1
+ax = 2
+-s = 3
+-l = 4
+-a = 5
+-h = 6
+-p = 7
+-V = 8
+
+'''
 IP = '127.0.0.1'
 buffer_size = 4096
 
@@ -24,7 +37,7 @@ def send_and_wait_for_socket(port, packet):
 			if not p:
 				break
 			else:
-				print lerPacote(p)
+				print (lerPacote(p))
 	except Exception as e:
 		print (e)
 	finally:
@@ -35,6 +48,9 @@ def lerPacote(p): #Fazer a leitura de cada parte do pacote
     cabecalho = unpack('!BBHHHBBHII', pac_list[0])
     soma_checksum = 0
     bytes_pack = unpack('!BBBBBBBBBBBBBBBBBBBB', pac_list[0])
+    # dividindo o pacote em bytes para conseguirmos checar o checksum
+    # utilizamos da operacao XOR (como explicado em aula) para fazer o processo
+    # nao "somamos" o byte 10 e 11 pois eles sao o checksum
     for i in range(len(bytes_pack)):
         if i not in (10,11):
             #print("</br>i="+str(i))
@@ -65,7 +81,6 @@ def montaPacote(cmd, opt): # Montar o pacote juntando cada parte
     soma_checksum = soma_checksum ^ bytes_tam[0]
     soma_checksum = soma_checksum ^ bytes_tam[1]
 
-    #Length = '0000000000000000'
     FragID = '0000000000000000'
     soma_checksum = soma_checksum ^ int(FragID[0:8], 2)
     soma_checksum = soma_checksum ^ int(FragID[8:16], 2)
@@ -96,13 +111,18 @@ def montaPacote(cmd, opt): # Montar o pacote juntando cada parte
     soma_checksum = soma_checksum ^ int(DestinationAddr[24:32],2)
 
 
-    bytes_opt = unpack('BBBB', pack('I', opt))
+    bytes_opt = unpack('BBBB', pack('I', opt)) # recebendo opt como 4 diferentes bytes
+    											# para conseguirmos dar o checksum
     
     soma_checksum = soma_checksum ^ bytes_opt[0]
     soma_checksum = soma_checksum ^ bytes_opt[1]
     soma_checksum = soma_checksum ^ bytes_opt[2]
     soma_checksum = soma_checksum ^ bytes_opt[3]
 
+    # empacotando o pacote com os tamanhos que queremos
+    # B = unsigned char (1 byte)
+    # H = unsigned short (2 bytes)
+    # I = unsigned int (4 bytes)
     pacote = pack('!BBHHHBBHIII',int(Version+IHL, 2) \
                      , int(TOS, 2) \
                      , tamPacote \
@@ -118,6 +138,9 @@ def montaPacote(cmd, opt): # Montar o pacote juntando cada parte
     
     return pacote
 
+
+# caso queira adicionar mais options possiveis, deve ser colocado
+# uma nova clausula dentro desse if elif
 def converteOption(s):
     if s == '':
         return 0
@@ -143,7 +166,9 @@ def converteOption(s):
 cgitb.enable()    
 
 print("Content-Type: text/html;charset=utf-8\r\n\r\n")
-print("<pre>")
+print("<pre>") # tag pre faz com que o que for escrito mantenha 
+				# a formatacao e tabs e novas linhas (sem precisar
+				# de outras tags html)
 
 form = cgi.FieldStorage()
 

@@ -5,11 +5,30 @@ import math
 import subprocess
 from struct import *
 
+
+'''
+
+lista de options - codigo
+se quiser adicionar mais um codigo eh necessario colocar dentro do "if op" no execute aqui e tambem 
+no webserver.py (codificador e decodificador)
+
+sem options = 0
+-ef = 1
+ax = 2
+-s = 3
+-l = 4
+-a = 5
+-h = 6
+-p = 7
+-V = 8
+
+'''
+
 BUFFER_SIZE = 4096
 IP = '127.0.0.1'
 PORT = 9001
 if len(sys.argv) < 2:
-  print "Porta nao encontrada"
+  print ("Porta nao encontrada")
 else:
     PORT = int(sys.argv[1])
 
@@ -56,6 +75,9 @@ def lerPacote(p): #Fazer a leitura de cada parte do pacote
     cabecalho = unpack('!BBHHHBBHIII', p)
     soma_checksum = 0
     bytes_pack = unpack('!BBBBBBBBBBBBBBBBBBBBBBBB', p)
+    # dividindo o pacote em bytes para conseguirmos checar o checksum
+    # utilizamos da operacao XOR (como explicado em aula) para fazer o processo
+    # nao "somamos" o byte 10 e 11 pois eles sao o checksum
     for i in range(len(bytes_pack)):
         if i not in (10,11):
             print(str(i))
@@ -143,7 +165,10 @@ def montaPacote(cmd, t, opt): # Montar o pacote juntando cada parte
                                      , int(SourceAddr, 2) \
                                      , int(DestinationAddr, 2)
                                      )
-        return cabecalho + "|||" + Dat
+        return cabecalho + "|||" + Dat # ||| para conseguir dar o split mais tarde, porque 
+                                        # o socket soh pode enviar uma string ou buffer
+                                        # optamos por enviar uma string no formato:
+                                        # "Cabecalho|||Dados"
 
 
 def func(connection):
@@ -153,10 +178,10 @@ def func(connection):
         comando, aux_t, opt = lerPacote(data)
         if comando != 'Erro':
             pacote = montaPacote(comando, aux_t, opt)
-            print "OK"
+            print ("OK")
             connection.send(pacote)
         else:
-            print "ERROR"
+            print ("ERROR")
 
     connection.close()
 
