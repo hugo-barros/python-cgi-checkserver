@@ -1,6 +1,5 @@
 # python-cgi-checkserver
 
-Trabalho desenvolvidor por
-
-Hugo Leonardo Moura
-Bruno F. Bortolli
+<p>Trabalho desenvolvidor por</p>
+<p>Hugo Leonardo Moura</p>
+<p>Bruno F. Bortolli</p>
